@@ -15,7 +15,7 @@ checking that a Racket listing has been typed in correctly.")
   (let ((pro (cdr (assoc :prologue params)))
 	(epi (cdr (assoc :epilogue params)))
 	(var-defs
-	 (let ((vars (mapcar #'cdr (org-babel-get-header params :var))))
+	 (let ((vars (mapcar #'cdr (org-babel--get-vars params))))
 	   (if (> (length vars) 0)
 	       (list
 		(concat
