@@ -1,6 +1,6 @@
 An [[https://www.gnu.org/software/emacs/][Emacs]] feature that defines support for [[http://orgmode.org/][Org-Mode]] Babel code blocks written in [[https://racket-lang.org/][Racket]].
 
-Includes support for many of the usual Org =SRC= block header arguments (with the notable exception of =session=), as well as some extras for controlling the way that code blocks are evaluated. This sort of functionality is perhaps more important for Racket than for most other languages, since Racket is not just one language. Rather, Racket is an open-ended, user-extensible collection of languages (including, e.g., Racket, Scribble, Slideshow, Redex, and Magnolisp), which may not always be evaluated in the Racket VM in the usual way of just invoking the =racket= executable.
+Includes support for many of the usual Org =SRC= block header arguments (with the notable exception of =:session=), as well as some extras for controlling the way that code blocks are evaluated. The additional controls are perhaps more important for Racket than for most other languages, since Racket is not just one language. Rather, Racket is an open-ended, user-extensible collection of languages (including, e.g., Racket, Scribble, Slideshow, Redex, and Magnolisp), which may not always be evaluated in the Racket VM in the usual way of just invoking the =racket= executable.
 
 * Pre-Requisites
 

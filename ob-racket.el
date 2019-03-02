@@ -12,12 +12,8 @@
   (defvar org-babel-tangle-lang-exts))
 (add-to-list 'org-babel-tangle-lang-exts '("racket" . "rkt"))
 
-(defvar org-babel-default-header-args:racket
-  '((:results . "output silent"))
-  "Default arguments when evaluating a Racket source block.
-Defaulting to \"output\" as \"value\" is more limited. Defaulting
-to \"silent\" as it is handy for just interactively checking that
-a Racket listing has been typed in correctly.")
+(defvar org-babel-default-header-args:racket nil
+  "Default header arguments for a Racket SRC block.")
 
 (defun org-babel-expand-body:racket (body params)
   "Expand BODY according to PARAMS, and return the expanded BODY.
@@ -27,15 +23,14 @@ available with default Racket semantics."
 	(epi (cdr (assoc :epilogue params)))
 	(var-defs
 	 (let ((vars (org-babel--get-vars params)))
-	   (if (> (length vars) 0)
-	       (list
-		(concat
-		 "(define-values ("
-		 (mapconcat (lambda (var) (format "%s" (car var))) vars " ")
-		 ") (values"
-		 (mapconcat (lambda (var) (format " %S" (cdr var))) vars "")
-		 "))"))
-	     nil))))
+	   (when (> (length vars) 0)
+	     (list
+	      (concat
+	       "(define-values ("
+	       (mapconcat (lambda (var) (format "%s" (car var))) vars " ")
+	       ") (values "
+	       (mapconcat (lambda (var) (format "%S" (cdr var))) vars " ")
+	       "))"))))))
     (mapconcat #'identity
 	       (append (when pro
 			 (list (ob-racket-expand-fmt pro)))
