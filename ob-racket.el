@@ -19,18 +19,21 @@
   "Expand BODY according to PARAMS, and return the expanded BODY.
 The expansion assumes `define-values` and `values` to be
 available with default Racket semantics."
-  (let ((pro (cdr (assoc :prologue params)))
-	(epi (cdr (assoc :epilogue params)))
-	(var-defs
-	 (let ((vars (org-babel--get-vars params)))
-	   (when (> (length vars) 0)
-	     (list
-	      (concat
-	       "(define-values ("
-	       (mapconcat (lambda (var) (format "%s" (car var))) vars " ")
-	       ") (values "
-	       (mapconcat (lambda (var) (format "%S" (cdr var))) vars " ")
-	       "))"))))))
+  (let* ((result-type (cdr (assoc :result-type params)))
+	 (pro (or (cdr (assoc :prologue params))
+		  (when (eq 'value result-type)
+		    "#lang racket\n")))
+	 (epi (cdr (assoc :epilogue params)))
+	 (var-defs
+	  (let ((vars (org-babel--get-vars params)))
+	    (when (> (length vars) 0)
+	      (list
+	       (concat
+		"(define-values ("
+		(mapconcat (lambda (var) (format "%s" (car var))) vars " ")
+		") (values "
+		(mapconcat (lambda (var) (format "%S" (cdr var))) vars " ")
+		"))"))))))
     (mapconcat #'identity
 	       (append (when pro
 			 (list (ob-racket-expand-fmt pro)))
