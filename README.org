@@ -1,10 +1,10 @@
-An [[https://www.gnu.org/software/emacs/][Emacs]] feature that defines support for [[http://orgmode.org/][Org-Mode]] Babel code blocks written in [[http://racket-lang.org/][Racket]].
+An [[https://www.gnu.org/software/emacs/][Emacs]] feature that defines support for [[http://orgmode.org/][Org-Mode]] Babel code blocks written in [[https://racket-lang.org/][Racket]].
 
 Includes support for many of the usual Org =SRC= block header arguments (with the notable exception of =session=), as well as some extras for controlling the way that code blocks are evaluated. This sort of functionality is perhaps more important for Racket than for most other languages, since Racket is not just one language. Rather, Racket is an open-ended, user-extensible collection of languages (including, e.g., Racket, Scribble, Slideshow, Redex, and Magnolisp), which may not always be evaluated in the Racket VM in the usual way of just invoking the =racket= executable.
 
 * Pre-Requisites
 
-  To use =ob-racket=, first ensure that Org-Mode 8 is installed, and that a major mode (such as [[https://github.com/greghendershott/racket-mode][racket-mode]]) has been configured for editing =racket= code blocks in Org. 
+  To use =ob-racket=, first ensure that Org-Mode is installed, and that a major mode (such as [[https://github.com/greghendershott/racket-mode][racket-mode]]) has been configured for editing =racket= code blocks in Org. 
 
   If your mode for editing Racket code is not called =racket-mode=, you'll want to specify the mode to use with something like:
   #+BEGIN_SRC emacs-lisp

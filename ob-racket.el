@@ -1,21 +1,32 @@
+;;; ob-racket.el --- Racket SRC blocks support for Org
+
+;;; Commentary:
+;;
+;; Some support for "racket" blocks in Org mode Babel.
+
 (require 'ob)
 
-(defvar org-babel-tangle-lang-exts)
+;;; Code:
+
+(eval-when-compile
+  (defvar org-babel-tangle-lang-exts))
 (add-to-list 'org-babel-tangle-lang-exts '("racket" . "rkt"))
 
 (defvar org-babel-default-header-args:racket
   '((:results . "output silent"))
   "Default arguments when evaluating a Racket source block.
-Defaulting to `output` as `value` is more limited.
-Defaulting to `silent` as it is handy for just interactively
-checking that a Racket listing has been typed in correctly.")
+Defaulting to \"output\" as \"value\" is more limited. Defaulting
+to \"silent\" as it is handy for just interactively checking that
+a Racket listing has been typed in correctly.")
 
 (defun org-babel-expand-body:racket (body params)
-  "Expands BODY according to PARAMS, returning the expanded body."
+  "Expand BODY according to PARAMS, and return the expanded BODY.
+The expansion assumes `define-values` and `values` to be
+available with default Racket semantics."
   (let ((pro (cdr (assoc :prologue params)))
 	(epi (cdr (assoc :epilogue params)))
 	(var-defs
-	 (let ((vars (mapcar #'cdr (org-babel--get-vars params))))
+	 (let ((vars (org-babel--get-vars params)))
 	   (if (> (length vars) 0)
 	       (list
 		(concat
@@ -35,10 +46,9 @@ checking that a Racket listing has been typed in correctly.")
 	       "\n")))
 
 (defun ob-racket-expand-fmt (fmt &optional params)
-  "Expands a format list `fmt`, and returns a string.
-Substitutes symbols according to the `params` alist.
-The `fmt` argument may also be a string, in which
-case it is returned as is."
+  "Expand a format list FMT, and return a string.
+Substitute symbols according to the PARAMS alist. The FMT
+argument may be a string, in which case it is returned as is."
   (if (stringp fmt)
       fmt
     (mapconcat
@@ -57,14 +67,18 @@ case it is returned as is."
      fmt "")))
 
 (defun org-babel-execute:racket (body params)
-  "Evaluates a `racket` code block.
+  "Evaluate a `racket` code block.
+Evaluate the block BODY according to PARAMS.
+
+Evaluation assumes `let' and `write' to be available with
+default Racket semantics.
 
 Some custom header arguments are supported for extra
 control over how the evaluation is to happen.
 These are:
-- :eval-file pathname (file for code to evaluate)
-- :cmd shell-command (defaults to '(\"racket -u\" eval-file))
-- :eval-fun lam-expr (as: in-fn out-fn -> result-string)
+- :eval-file <pathname> (file for code to evaluate)
+- :cmd <shell-command> (defaults to '(\"racket -u\" eval-file))
+- :eval-fun <lam-expr> (as: in-fn out-fn -> result-string)
 
 The `shell-command` may also be a list of strings that
 will be concatenated; the list may also contain one of
@@ -75,13 +89,12 @@ the following symbols:
 For more control, the :eval-fun parameter may specify
 a lambda expression to define how to process the block.
 As special cases, :eval-fun may be specified as:
-- \"body\", to have the result be the bare body content
+- \"body\", to have the result be the bare BODY content
 - \"code\", to have the result be the expanded code
 - \"file\", to have the result name a file containing the code"
   (let* ((eval-file
 	  (or (cdr (assoc :eval-file params))
 	      (org-babel-temp-file "org-babel-" ".rkt")))
-         ;;(result-params (cdr (assoc :result-params params)))
          (result-type (cdr (assoc :result-type params)))
 	 (v-body (cond
 		  ((eq 'value result-type)
@@ -90,11 +103,10 @@ As special cases, :eval-fun may be specified as:
 		  ((eq 'output result-type)
 		   body)
 		  (t
-		   (error "expected :results of `output` or `value`"))))
+		   (error "Expected :results of `output` or `value`"))))
 	 ;; `full-body` will have any :prologue and :epilogue.
 	 (full-body (org-babel-expand-body:racket v-body params))
 	 (eval-fun (cdr (assoc :eval-fun params))))
-    ;;(message "eval-fun=%S" eval-fun)
     (cond
      ((equal eval-fun "body")
       body)
@@ -133,15 +145,18 @@ As special cases, :eval-fun may be specified as:
 			     . ,(and out-fn
 				     (shell-quote-argument out-fn))))))
 		     (ob-racket-expand-fmt cmd-fmt fmt-par))))
-	      ;;(format "sh-cmd=%S" sh-cmd)
 	      (message sh-cmd)
 	      (shell-command-to-string sh-cmd)))
 	   ((listp eval-fun)
 	    (funcall (eval eval-fun t) in-fn out-fn))
 	   (t
-	    (error "expected lambda expression for :eval-fun"))))))))))
+	    (error "Expected lambda expression for :eval-fun"))))))))))
 
 (defun org-babel-prep-session:racket (session params)
-  (error "`racket` presently does not support sessions"))
+  "Error out due to lack of support.
+SESSION and PARAMS are ignored."
+  (error "Sessions not yet supported for `racket`"))
 
 (provide 'ob-racket)
+
+;;; ob-racket.el ends here
