@@ -1,12 +1,12 @@
 The body is evaluated, but nothing is output into the buffer.
-#+BEGIN_SRC racket :results silent
+#+BEGIN_SRC racket :results output silent
   'not-printed
 #+END_SRC
 
 The body is treated as a =racket= language expression, and the result is output.
 #+BEGIN_SRC racket :results value
   (define two 2)
-  two
+  two ;; not output
   (* two two two)
 #+END_SRC
 
@@ -16,10 +16,12 @@ The body is treated as a =racket= language expression, and the result is output.
 The body is in =racket=, and top-level values get output.
 #+BEGIN_SRC racket :results output
   #lang racket
+  (list 1 2 3)
   (set 1 2 3) 
 #+END_SRC
 
 #+RESULTS:
+: '(1 2 3)
 : (set 1 3 2)
 
 The body is in =racket/base=, and top-level values get output.
@@ -36,7 +38,15 @@ The body is in =racket/base=, and top-level values get output.
 : 3
 
 The body is in =racket/base=, and the value gets output.
-#+BEGIN_SRC racket :results value :prologue "#lang racket/base"
+#+BEGIN_SRC racket :prologue "#lang racket/base"
+  (list 1 2)
+#+END_SRC
+
+#+RESULTS:
+: (1 2)
+
+The above can also be written more concisely as
+#+BEGIN_SRC racket :lang racket/base
   (list 1 2)
 #+END_SRC
 
@@ -44,7 +54,7 @@ The body is in =racket/base=, and the value gets output.
 : (1 2)
 
 The body is in =racket=, and we are passing in values for it.
-#+BEGIN_SRC racket :results value :var x=5 :var y=6
+#+BEGIN_SRC racket :var x=5 :var y=6
   (/ x y)
 #+END_SRC
 
@@ -52,22 +62,30 @@ The body is in =racket=, and we are passing in values for it.
 : 5/6
 
 The body is in =racket/base=, and we are passing in values for it.
-#+BEGIN_SRC racket :results value :var x=5 :var y=6 :prologue "#lang racket/base"
-  (list x y)
+#+BEGIN_SRC racket :var x="5" :var y="6" :prologue "#lang racket/base"
+  (string-append x y)
 #+END_SRC
 
 #+RESULTS:
-: (5 6)
+: "56"
 
-As above, but now we require a library not otherwise available in =racket/base=.
-#+BEGIN_SRC racket :results value :var x=5 :var y=6 :prologue "#lang racket/base\n(require racket/set)"
-  (set x y)
+The body is in =at-exp racket/base=, and we are passing in values for it.
+#+BEGIN_SRC racket :var x=''x :var y=''y :lang at-exp racket/base
+  @list[x y]
 #+END_SRC
 
 #+RESULTS:
-: #<set: 5 6>
+: (x y)
 
-Being explicit about =#lang= and =require=.
+As above, but now requiring a library not otherwise available in =racket/base=.
+#+BEGIN_SRC racket :var x=5 :var y=6 :prologue "#lang racket/base\n(require racket/set)"
+  (set x (add1 y))
+#+END_SRC
+
+#+RESULTS:
+: #<set: 5 7>
+
+It is possible to show the =#lang= line and the =require= form in the listing.
 #+BEGIN_SRC racket :results output
   #lang racket/base
   (require racket/set)
@@ -76,13 +94,216 @@ Being explicit about =#lang= and =require=.
 #+END_SRC
 
 #+RESULTS:
-: (set 1 5 9 3 7 0 4 8 2 6)
+: (set 1 5 9 3 7 0 2 6 4 8)
 
-Run code in the listing via a submodule that is not shown in the listing itself.
-#+BEGIN_SRC racket :results output :var x=5 :var y=6 :prologue "#lang racket/base\n(require racket/set)" :epilogue "(module* main #f (run))"
-  (define (run)
-    (write (set x y)))
+As =require= is a top-level form, the above does not work for a =value= computing block. We can, however, write
+#+BEGIN_SRC racket :results value :lang racket/base :require racket/set
+  (for/set ([i (in-range 100)])
+    i)
+  (for/set ([i (in-range 10)])
+    i)
 #+END_SRC
 
 #+RESULTS:
-: #<set: 5 6>
+: #<set: 1 5 9 3 7 0 2 6 4 8>
+
+The =require= header argument accepts multiple require specifications.
+#+BEGIN_SRC racket :lang racket/base :require racket/function racket/set
+  ((const (seteqv 1)))
+#+END_SRC
+
+#+RESULTS:
+: #<seteqv: 1>
+
+Babel allows code block argument values to be specified as Emacs Lisp expressions.
+#+BEGIN_SRC racket :var fn=(file-name-nondirectory (buffer-file-name))
+fn
+#+END_SRC
+
+#+RESULTS:
+: "EXAMPLE.org"
+
+Babel allows code blocks to be named.
+#+NAME: double
+#+BEGIN_SRC racket :var x=0
+(* x 2)
+#+END_SRC
+
+#+RESULTS: double
+: 0
+
+Babel allows code blocks to be called. Arguments tend to be given as Emacs Lisp values, and passed to Racket by =write='ing them within the program in Emacs Lisp literal syntax.
+#+CALL: double(x=3.14)
+
+#+RESULTS:
+: 6.28
+
+It is possible to refer to Racket names if they are in the language of the called block. In this case, the Emacs Lisp expression ='pi= self-evaluates to a symbol that prints as a Racket identifier defined in =racket/math=.
+#+CALL: double(x='pi)
+
+#+RESULTS:
+: 6.283185307179586
+
+Another way to get the same result is to state that the =:vars-are= given as Racket expression strings.
+#+CALL: double[:vars-are racket](x="pi")
+
+#+RESULTS:
+: 6.283185307179586
+
+We can avoid the requirement on =racket/math= by instead referencing an equivalent Emacs Lisp variable.
+#+CALL: double(x=(+ float-pi))
+
+#+RESULTS:
+: 6.283185307179586
+
+#+NAME: some-x
+#+BEGIN_SRC racket
+3
+#+END_SRC
+
+#+RESULTS: some-x
+: 3
+
+As usual in Babel, a =:var= value can be given by referencing a named block. The result of a Racket block is normally a string of =write='n Racket values, and with =:vars-are racket= we can avoid having to have the referencing block explicitly parse those expressions.
+#+BEGIN_SRC racket :var x=some-x :vars-are racket
+(/ (+ x 7) x)
+#+END_SRC
+
+#+RESULTS:
+: 10/3
+
+It is especially useful to insert the =:var= values as Racket expressions if we have an existing block that does not do any parsing.
+#+CALL: double[:vars-are racket](x=some-x)
+
+#+RESULTS:
+: 6
+
+Code in the listing can be run via a submodule that is not shown in the listing itself.
+#+HEADER: :epilogue "(module* main #f (run))"
+#+BEGIN_SRC racket :results output :var x='5/6 :var y='6/7 :lang racket/base
+  (define (run)
+    (write (+ x y)))
+#+END_SRC
+
+#+RESULTS:
+: 71/42
+
+For even more control over what gets evaluated, it is possible to override templates using header arguments of the same name.
+#+HEADER: :program '(lines "#lang racket/base" "(require racket/function racket/set)" :body)
+#+BEGIN_SRC racket
+  (identity (seteq 'x 'y 'z))
+#+END_SRC
+
+#+RESULTS:
+: (seteq 'x 'y 'z)
+
+More complex program templates can perhaps be more conveniently specified as an S-expression.
+#+BEGIN_SRC racket :program '(sexp module m racket/base (require racket/function racket/set) (define (run) :body) (module+ main (run)))
+  (identity (set "a" "b" "c"))
+#+END_SRC
+
+#+RESULTS:
+: (set "b" "c" "a")
+
+There is special support for converting a Racket result to Emacs Lisp.
+#+NAME: some-data
+#+BEGIN_SRC racket :results-as elisp
+  (list #("a" "b" "c") (seteq 'd 'e 'f))
+#+END_SRC
+
+#+RESULTS: some-data
+: (["a" "b" "c"] (f d e))
+
+Such conversion can be useful if we wish to =read= it into Emacs Lisp to do further processing.
+#+BEGIN_SRC emacs-lisp :var x=some-data :results scalar
+  (reverse (apply #'append (read x)))
+#+END_SRC
+
+#+RESULTS:
+: (e d f "c" "b" "a")
+
+As usual with Babel, we can display results as a table.
+#+CALL: some-data() :results table
+
+#+RESULTS:
+| [a b c] | (f d e) |
+
+Or, we can display them as a list.
+#+CALL: some-data() :results list
+
+#+RESULTS:
+- ["a" "b" "c"]
+- (f d e)
+
+Unless otherwise specified, "racket" blocks default to the "scalar" result type.
+#+CALL: some-data()
+
+#+RESULTS:
+: (["a" "b" "c"] (f d e))
+
+Racket data can be output two dimensionally.
+#+BEGIN_SRC racket :results table
+  (set (seteq 'a 'b 'c)
+       (vector-immutable 'h 'i 'j)
+       (list 'x 'y 'z))
+#+END_SRC
+
+#+RESULTS:
+| h | i | j |
+| x | y | z |
+| b | c | a |
+
+#+BEGIN_SRC racket :results table
+  #hash((1 . "one") (2 . "two") (3 . "three"))
+#+END_SRC
+
+#+RESULTS:
+| 1 | "one"   |
+| 3 | "three" |
+| 2 | "two"   |
+
+It is possible to pass arguments to a Racket program.
+#+BEGIN_SRC racket :cmdline a b c
+  (current-command-line-arguments)
+#+END_SRC
+
+#+RESULTS:
+: #("a" "b" "c")
+
+Should we need the evaluated Racket source with a specific name or in a specific directory, we can specify those names, but the directory should already exist, since it does not get created.
+#+BEGIN_SRC racket :in-file /tmp/foo/bar.rkt :eval no-export
+'tmp/foo
+#+END_SRC
+
+#+RESULTS:
+: tmp/foo
+
+The =dir= header argument is standard for Babel, also affecting the =in-file= header argument, since it actually temporarily changes the working directory.
+#+BEGIN_SRC racket :dir /tmp/foo :in-file bar.rkt :eval no-export
+'baz
+#+END_SRC
+
+#+RESULTS:
+: baz
+
+We might want to know the Racket source file name if we use a custom command to evaluate it, and that command assumes a certain name. However, if the command accepts the name as an argument, then we can just pass =in-file= to it.
+#+HEADER: :command '(spaced "strings" :in-file)
+#+BEGIN_SRC racket
+'baz
+#+END_SRC
+
+#+RESULTS:
+: #lang racket
+: (write (let ()
+: 'baz))
+
+It is possible to evaluate the code block content as an executable script, if that is what one wants to demonstrate with the listing. It is important here to ensure that the shebang line is the very first one, but that can be ensured by having nothing but the code block body in the program.
+#+HEADER: :command '(spaced "chmod" "u+x" :in-file "&&" :in-file)
+#+BEGIN_SRC racket :results output :program ':body
+#!/usr/bin/env racket
+#lang racket
+"This is a script written in Racket."
+#+END_SRC
+
+#+RESULTS:
+: "This is a script written in Racket."
