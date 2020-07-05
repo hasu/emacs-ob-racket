@@ -1,7 +1,7 @@
 ;;; ob-racket.el --- Racket SRC block support for Org
 ;; -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2015, 2019 the authors
+;; Copyright (C) 2015, 2019, 2020 the authors
 ;;
 ;; Authors: Tero Hasu
 ;; Homepage: https://github.com/hasu/emacs-ob-racket
@@ -192,34 +192,46 @@ returns nil, no conversion takes place.")
 	    (when (or (not p) (cdr p))
 	      (let ((lang (or (cdr p) ob-racket-default-lang)))
 		(when lang
-		  (list "#lang " lang)))))))
+		  `(spaced "#lang" ,lang)))))))
     (requires
      . ,(lambda (env params)
 	  (let ((req (assq :require params)))
 	    (when req
-	      `("(require " ,(cdr req) ")")))))
+	      `(parens (spaced "require" ,(cdr req)))))))
     (define-vars
       . ,(lambda (env params)
-	   (let ((vars (org-babel--get-vars params))
-		 (in-racket (equal "racket" (cdr (assq :vars-are params)))))
+	   (let ((vars (org-babel--get-vars params)))
 	     (when vars
-	       (concat
-		"(define-values ("
-		(mapconcat (lambda (var)
-			     (format "%s" (car var)))
-			   vars " ")
-		") (values "
-		(mapconcat (lambda (var)
-			     (let ((val (cdr var)))
-			       (if (and in-racket (stringp val))
-				   ;; Already a Racket expression.
-				   val
-				 ;; May not format as Racket, but most
-				 ;; other Babel language definitions
-				 ;; also do not seem to do much else.
-				 (format "%S" val))))
-			   vars " ")
-		"))")))))
+	       `(parens
+		 (spaced
+		  "define-values"
+		  (parens
+		   (spaced ,@(mapcar
+			      (lambda (var)
+				(format "%s" (car var)))
+			      vars)))
+		  (parens
+		   (spaced "values"
+			   ,@(mapcar
+			      (lambda (var)
+				(let ((val (cdr var)))
+				  `(parameterize
+				    (:value ,val)
+				    var-value)))
+			      vars)))))))))
+    (var-value
+     . ,(lambda (env params)
+	  (let ((in-racket (equal "racket" (cdr (assq :vars-are params))))
+		;; In this case we assume that `val' is a non-template,
+		;; and something we may immediately coerce into a string.
+		(val (cdr (assq :value params))))
+	    (if (and in-racket (stringp val))
+		;; Already a Racket expression.
+		val
+	      ;; May not format as Racket, but most
+	      ;; other Babel language definitions
+	      ;; also do not seem to do much else.
+	      (format "%S" val)))))
     )
   "Default code templates.
 A list of the form ((SYMBOL . TEMPLATE) ...). See
@@ -313,11 +325,24 @@ PARAMS, then that parameter is used instead of anything in ENV."
 	(ob-racket-expand-template template env params))
       rest
       (ob-racket-expand-template sep env params)))
+    (`(parens . ,rest) ;; special form
+     (ob-racket-expand-template `(concat "(" ,@rest ")") env params))
     (`(sexp . ,rest) ;; special form
      (ob-racket-expand-sexp rest env params))
+    (`(format ;; special form
+       ,(and (pred stringp) fmt)
+       ,(and (pred keywordp) x))
+     (let ((p (assq x params)))
+       (unless p
+	 (error "No assignment for parameter %s in %S" x params))
+       (format fmt (cdr p))))
     (`(file ,name) ;; special form
      (org-babel-process-file-name
       (ob-racket-expand-template name env params)))
+    (`(parameterize ;; special form
+       (,(and (pred keywordp) x) ,v)
+       . ,rest)
+     (ob-racket-expand-template rest env (cons (cons x v) params)))
     ((pred listp) ;; implicit default special form
      (ob-racket-expand-template (cons 'concat template) env params))
     (_

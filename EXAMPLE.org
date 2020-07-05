@@ -178,6 +178,22 @@ It is especially useful to insert the =:var= values as Racket expressions if we 
 #+RESULTS:
 : 6
 
+We would have full control over how argument values are converted into Racket expressions by overriding the =var-value= code template. The =:var-value= header argument is less flexible.
+#+BEGIN_SRC racket :var x=1 :var y=3 :var z=7 :var-value "1/2"
+(+ x y z)
+#+END_SRC
+
+#+RESULTS:
+: 3/2
+
+The =:value= to turn into a Racket expression is the raw header argument value, and must be coerced into a Racket string.
+#+BEGIN_SRC racket :var x=1 :var y=3 :var z=7 :var-value '(format "(- %s 1)" :value)
+(+ x y z)
+#+END_SRC
+
+#+RESULTS:
+: 8
+
 Code in the listing can be run via a submodule that is not shown in the listing itself.
 #+HEADER: :epilogue "(module* main #f (run))"
 #+BEGIN_SRC racket :results output :var x='5/6 :var y='6/7 :lang racket/base
@@ -287,7 +303,7 @@ The =dir= header argument is standard for Babel, also affecting the =in-file= he
 : baz
 
 We might want to know the Racket source file name if we use a custom command to evaluate it, and that command assumes a certain name. However, if the command accepts the name as an argument, then we can just pass =in-file= to it.
-#+HEADER: :command '(spaced "strings" :in-file)
+#+HEADER: :command '(spaced "strings" (file :in-file))
 #+BEGIN_SRC racket
 'baz
 #+END_SRC
@@ -298,7 +314,7 @@ We might want to know the Racket source file name if we use a custom command to 
 : 'baz))
 
 It is possible to evaluate the code block content as an executable script, if that is what one wants to demonstrate with the listing. It is important here to ensure that the shebang line is the very first one, but that can be ensured by having nothing but the code block body in the program.
-#+HEADER: :command '(spaced "chmod" "u+x" :in-file "&&" :in-file)
+#+HEADER: :command '(spaced "chmod" "u+x" (file :in-file) "&&" (file :in-file))
 #+BEGIN_SRC racket :results output :program ':body
 #!/usr/bin/env racket
 #lang racket
