@@ -61,6 +61,7 @@
 ;; To acquire a copy of the GNU General Public License, see
 ;; <https://www.gnu.org/licenses/>.
 
+(require 'cl-lib)
 (require 'ob)
 
 ;;; Code:
@@ -202,23 +203,37 @@ returns nil, no conversion takes place.")
       . ,(lambda (env params)
 	   (let ((vars (org-babel--get-vars params)))
 	     (when vars
-	       `(parens
-		 (spaced
-		  "define-values"
-		  (parens
-		   (spaced ,@(mapcar
-			      (lambda (var)
-				(format "%s" (car var)))
-			      vars)))
-		  (parens
-		   (spaced "values"
-			   ,@(mapcar
-			      (lambda (var)
-				(let ((val (cdr var)))
+	       (if (ob-racket-get-template 'define-var env params)
+		   `(lines
+		     ,@(mapcar
+			(lambda (var)
+			  `(parameterize
+			    (:name ,(car var))
+			    (parameterize
+			     (:value ,(cdr var))
+			     define-var)))
+			vars))
+		 `(parens
+		   (spaced
+		    "define-values"
+		    (parens
+		     (spaced ,@(mapcar
+				(lambda (var)
 				  `(parameterize
-				    (:value ,val)
-				    var-value)))
-			      vars)))))))))
+				    (:name ,(car var))
+				    var-name))
+				vars)))
+		    (parens
+		     (spaced "values"
+			     ,@(mapcar
+				(lambda (var)
+				  `(parameterize
+				    (:value ,(cdr var))
+				    var-value))
+				vars))))))))))
+    (var-name
+     . ,(lambda (env params)
+	  (symbol-name (cdr (assq :name params)))))
     (var-value
      . ,(lambda (env params)
 	  (let ((in-racket (equal "racket" (cdr (assq :vars-are params))))
@@ -232,6 +247,7 @@ returns nil, no conversion takes place.")
 	      ;; other Babel language definitions
 	      ;; also do not seem to do much else.
 	      (format "%S" val)))))
+    (with-define . (parens (spaced "define" var-name var-value)))
     )
   "Default code templates.
 A list of the form ((SYMBOL . TEMPLATE) ...). See
@@ -249,6 +265,14 @@ expanded.")
 A list of the form ((SYMBOL . TEMPLATE) ...). See
 `ob-racket-expand-template' for details on how templates are
 expanded.")
+
+(defun ob-racket-get-template (name env params)
+  "Get the definition of template NAME.
+The name must be given as the symbol, not the keyword. If it has
+no template definition, return nil. Both the environment ENV and
+the header PARAMS are checked."
+  (or (assq name env)
+      (assq (intern (concat ":" (symbol-name name))) params)))
 
 (defun ob-racket-expand-sexp (template env params)
   "Expand an S-expression, and return a string.
@@ -331,11 +355,17 @@ PARAMS, then that parameter is used instead of anything in ENV."
      (ob-racket-expand-sexp rest env params))
     (`(format ;; special form
        ,(and (pred stringp) fmt)
-       ,(and (pred keywordp) x))
-     (let ((p (assq x params)))
-       (unless p
-	 (error "No assignment for parameter %s in %S" x params))
-       (format fmt (cdr p))))
+       . ,(and (pred (lambda (xs)
+		       (and (listp xs) (cl-every #'keywordp xs))))
+	       args))
+     (apply #'format fmt (mapcar
+			  (lambda (x)
+			    (let ((p (assq x params)))
+			      (unless p
+				(error "No assignment for parameter %s in %S"
+				       x params))
+			      (cdr p)))
+			  args)))
     (`(file ,name) ;; special form
      (org-babel-process-file-name
       (ob-racket-expand-template name env params)))

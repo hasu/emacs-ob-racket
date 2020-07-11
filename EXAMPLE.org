@@ -17,7 +17,7 @@ The body is in =racket=, and top-level values get output.
 #+BEGIN_SRC racket :results output
   #lang racket
   (list 1 2 3)
-  (set 1 2 3) 
+  (set 1 2 3)
 #+END_SRC
 
 #+RESULTS:
@@ -312,6 +312,59 @@ We might want to know the Racket source file name if we use a custom command to 
 : #lang racket
 : (write (let ()
 : 'baz))
+
+This can be useful for inspecting the code that is being executed.
+#+HEADER: :command '(spaced "cat" (file :in-file))
+#+BEGIN_SRC racket :lang racket/base :var x=1 y=2 z='1/100
+(* x y z)
+#+END_SRC
+
+#+RESULTS:
+: #lang racket/base
+: 
+: (write (let ()
+: (define-values (x y z) (values 1 2 1/100))
+: (* x y z)))
+
+Some languages may not support that form of defining variables, or we may want to have the previous header argument variables to be in scope for the next variable initializer. The variable definition syntax can be specified with =:define-var=.
+#+HEADER: :command '(spaced "cat" (file :in-file))
+#+HEADER: :define-var '(parens (spaced "define" var-name var-value))
+#+BEGIN_SRC racket :lang racket/base :var x=1 y='x z='(+ x y)
+(+ x y z)
+#+END_SRC
+
+#+RESULTS:
+: #lang racket/base
+: 
+: (write (let ()
+: (define x 1)
+: (define y x)
+: (define z (+ x y))
+: (+ x y z)))
+
+There is a predefined shorthand =with-define= for using a sequence of =define= forms instead of the default =define-values= form.
+#+HEADER: :define-var 'with-define
+#+BEGIN_SRC racket :lang racket/base :var x=1 y='x z='(+ x y)
+(+ x y z)
+#+END_SRC
+
+#+RESULTS:
+: 4
+
+#+HEADER: :command '(spaced "cat" (file :in-file))
+#+HEADER: :define-var '(format "val %s = %s;" :name :value)
+#+HEADER: :program '(lines prologue define-vars (spaced "println" :body))
+#+BEGIN_SRC racket :lang some :var x=1 y='x z="x + y"
+x + y + z
+#+END_SRC
+
+#+RESULTS:
+: #lang some
+: 
+: val x = 1;
+: val y = x;
+: val z = x + y;
+: println x + y + z
 
 It is possible to evaluate the code block content as an executable script, if that is what one wants to demonstrate with the listing. It is important here to ensure that the shebang line is the very first one, but that can be ensured by having nothing but the code block body in the program.
 #+HEADER: :command '(spaced "chmod" "u+x" (file :in-file) "&&" (file :in-file))
