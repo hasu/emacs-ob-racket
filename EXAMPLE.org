@@ -376,3 +376,12 @@ It is possible to evaluate the code block content as an executable script, if th
 
 #+RESULTS:
 : "This is a script written in Racket."
+
+Finally, for something useful, let us byte-compile the ob-racket Racket runtime:
+#+BEGIN_SRC racket :require compiler/compiler :results output
+  ((compile-zos #f #:module? #t #:verbose? #t)
+   '("ob-racket-runtime.rkt") 'auto)
+#+END_SRC
+
+#+RESULTS:
+:  [output to "./compiled/ob-racket-runtime_rkt.zo"]

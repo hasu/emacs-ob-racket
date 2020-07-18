@@ -1,5 +1,4 @@
-;;; ob-racket.el --- Racket SRC block support for Org
-;; -*- lexical-binding: t; -*-
+;;; ob-racket.el --- Racket SRC block support for Org  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2015, 2019, 2020 the authors
 ;;
@@ -154,7 +153,7 @@ returns nil, no conversion takes place.")
 (defvar ob-racket-default-code-templates
   `(
     (program
-     . ,(lambda (env params)
+     . ,(lambda (_env params)
 	  (let* ((result-type (cdr (assq :result-type params)))
 		 (is-value-type (eq 'value result-type)))
 	    (if is-value-type
@@ -163,7 +162,7 @@ returns nil, no conversion takes place.")
 		  'value-program)
 	      'output-program))))
     (require-runtime-library
-     . ,(lambda (env params)
+     . ,(lambda (_env params)
 	  (format "%S" `(require (file ,(cdr (assq :runtime-library params)))))))
     (elisp-value-program
      . (prologue
@@ -188,14 +187,14 @@ returns nil, no conversion takes place.")
 	requires))
     (epilogue . nil)
     (lang-line
-     . ,(lambda (env params)
+     . ,(lambda (_env params)
 	  (let ((p (assq :lang params)))
 	    (when (or (not p) (cdr p))
 	      (let ((lang (or (cdr p) ob-racket-default-lang)))
 		(when lang
 		  `(spaced "#lang" ,lang)))))))
     (requires
-     . ,(lambda (env params)
+     . ,(lambda (_env params)
 	  (let ((req (assq :require params)))
 	    (when req
 	      `(parens (spaced "require" ,(cdr req)))))))
@@ -232,10 +231,10 @@ returns nil, no conversion takes place.")
 				    var-value))
 				vars))))))))))
     (var-name
-     . ,(lambda (env params)
+     . ,(lambda (_env params)
 	  (symbol-name (cdr (assq :name params)))))
     (var-value
-     . ,(lambda (env params)
+     . ,(lambda (_env params)
 	  (let ((in-racket (equal "racket" (cdr (assq :vars-are params))))
 		;; In this case we assume that `val' is a non-template,
 		;; and something we may immediately coerce into a string.
@@ -257,7 +256,7 @@ expanded.")
 (defvar ob-racket-default-command-templates
   `(
     (cmdline . nil)
-    (command . ,(lambda (env params)
+    (command . ,(lambda (_env _params)
 		  ob-racket-default-command))
     (racket . "racket")
     )
@@ -465,7 +464,7 @@ results are processed."
 	(unless (eq ob-racket-debug 'keep-file)
 	  (delete-file in-file))))))
 
-(defun org-babel-prep-session:racket (session params)
+(defun org-babel-prep-session:racket (_session _params)
   "Error out due to lack of support.
 SESSION and PARAMS are ignored."
   (error "Sessions are not supported for `racket`"))

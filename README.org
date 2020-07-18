@@ -8,7 +8,7 @@ To use =ob-racket=, first ensure that Org-Mode is installed, and that a major mo
 
 If your mode for editing Racket code is not called =racket-mode=, you'll want to specify the mode to use with something like:
 #+BEGIN_SRC emacs-lisp
-  (add-to-list 'org-src-lang-modes (quote ("racket" . geiser)))
+  (add-to-list 'org-src-lang-modes '("racket" . geiser))
 #+END_SRC
 
 * Installation
