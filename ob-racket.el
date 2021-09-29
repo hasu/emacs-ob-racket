@@ -125,15 +125,16 @@ list, etc.) formatting.")
 	       (not (assq :lang params))
 	       (not (assq :lang-line params))
 	       (not (assq :prologue params)))
-      (when (let ((case-fold-search nil))
-	      (string-match ob-racket-hash-lang-regexp body))
-	(let* ((lang-line (match-string 0 body))
-	       (result-type (cdr (assq :result-type params)))
-	       (is-value-type (eq 'value result-type)))
-	  (if is-value-type
-	      (setq params (cons (cons :lang-line lang-line) params)
-		    body (replace-match "" t t body))
-	    (setq params (cons (cons :lang-line nil) params))))))
+      (save-match-data
+	(when (let ((case-fold-search nil))
+		(string-match ob-racket-hash-lang-regexp body))
+	  (let* ((lang-line (match-string 0 body))
+		 (result-type (cdr (assq :result-type params)))
+		 (is-value-type (eq 'value result-type)))
+	    (if is-value-type
+		(setq params (cons (cons :lang-line lang-line) params)
+		      body (replace-match "" t t body))
+	      (setq params (cons (cons :lang-line nil) params)))))))
     (list body params))
   "A function for preprocessing the block.
 If this variable is non-nil, it is used for preprocessing the SRC

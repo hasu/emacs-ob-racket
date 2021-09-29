@@ -4,7 +4,7 @@ Includes support for many of the usual Org =SRC= block header arguments (with th
 
 * Pre-Requisites
 
-To use =ob-racket=, first ensure that Org-Mode is installed, and that a major mode (such as [[https://github.com/greghendershott/racket-mode][racket-mode]]) has been configured for editing =racket= code blocks in Org. 
+To use =ob-racket=, first ensure that Org-Mode is installed in Emacs, as it probably is. For a richer editing experience you may also want to ensure that a major mode (such as [[https://github.com/greghendershott/racket-mode][racket-mode]]) has been configured for editing =racket= code blocks in Org.
 
 If your mode for editing Racket code is not called =racket-mode=, you'll want to specify the mode to use with something like:
 #+BEGIN_SRC emacs-lisp
@@ -26,8 +26,11 @@ Furthermore, you should enable =racket= code for evaluation (e.g., upon invoking
    'org-babel-load-languages
    '((emacs-lisp . t)
      (racket . t)
-     (scribble . t)))
+     ;;(scribble . t) ;; if Scribble support is available
+     ))
 #+END_SRC
+
+Code evaluation may still require confirmation, depending on the value of the =org-confirm-babel-evaluate= variable, which is customizable, and may also be set file locally.
 
 Some =ob-racket= functionality relies on a Racket module for converting Racket values to Emacs Lisp ones, and it can be worthwhile to byte-compile that module:
 : raco make ob-racket-runtime.rkt
