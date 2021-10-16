@@ -385,3 +385,10 @@ Finally, for something useful, let us byte-compile the ob-racket Racket runtime:
 
 #+RESULTS:
 :  [output to "./compiled/ob-racket-runtime_rkt.zo"]
+
+Do the byte-compilation using =raco=:
+#+BEGIN_SRC racket :require raco/all-tools :results silent
+  (define raco-make-spec (hash-ref (all-tools) "make"))
+  (parameterize ([current-command-line-arguments (vector "ob-racket-runtime.rkt")])
+    (dynamic-require (second raco-make-spec) #f))
+#+END_SRC

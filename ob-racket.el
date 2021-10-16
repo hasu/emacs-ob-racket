@@ -470,6 +470,52 @@ results are processed."
 SESSION and PARAMS are ignored."
   (error "Sessions are not supported for `racket`"))
 
+(defun ob-racket-raco-make-runtime-library ()
+  "Run raco make on the ob-racket Racket runtime library.
+To do that run Racket as defined by ob-racket command templates.
+Do nothing if there is no library that is known to
+`ob-racket-locate-runtime-library-function'."
+  (when ob-racket-locate-runtime-library-function
+    (let ((runtime-library
+           (funcall ob-racket-locate-runtime-library-function)))
+      (when runtime-library
+        (let* ((in-file
+		(org-babel-temp-file "org-babel-" ".rkt"))
+	       (command
+	        (ob-racket-expand-template
+                 'command
+                 (append ob-racket-custom-command-templates
+		         ob-racket-default-command-templates)
+                 `((:in-file . ,in-file)))))
+          (with-temp-file in-file
+	    (insert
+             (ob-racket-expand-template
+              `(lines
+                "#lang racket/base"
+                "(require raco/all-tools)"
+                "(define raco-make-spec (hash-ref (all-tools) \"make\"))"
+                (parens
+                 (spaced
+                  "parameterize"
+                  (parens
+                   (parens
+                    (spaced
+                     "current-command-line-arguments"
+                     (parens (spaced "vector" runtime-library)))))
+                  "(dynamic-require (cadr raco-make-spec) #f)")))
+              `((runtime-library
+                 . ,(lambda (_env params)
+	              (format "%S" runtime-library))))
+              nil)))
+          (prog1
+              (with-temp-buffer
+                (shell-command command nil (current-buffer))
+                (let ((error-message (buffer-string)))
+                  (unless (= 0 (length error-message))
+                    (message "Failed to raco make %S: %s"
+                             runtime-library error-message))))
+            (delete-file in-file)))))))
+
 (provide 'ob-racket)
 
 ;;; ob-racket.el ends here
