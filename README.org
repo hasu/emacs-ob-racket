@@ -35,6 +35,24 @@ Code evaluation may still require confirmation, depending on the value of the =o
 Some =ob-racket= functionality relies on a Racket module for converting Racket values to Emacs Lisp ones, and it can be worthwhile to byte-compile that module:
 : raco make ob-racket-runtime.rkt
 
+** Installation with straight.el
+
+The cloning, byte-compilation, loading, and configuration can all be done declaratively with [[https://github.com/raxod502/straight.el][straight.el]], [[https://github.com/jwiegley/use-package][use-package]], and the included =ob-racket-raco-make-runtime-library= function:
+#+begin_src emacs-lisp
+  (use-package ob-racket
+    :after org
+    :functions (ob-racket-raco-make-runtime-library)
+    :config
+    (org-babel-do-load-languages
+     'org-babel-load-languages
+     '((emacs-lisp . t)
+       (racket . t)))
+    (ob-racket-raco-make-runtime-library)
+    :straight (ob-racket
+	       :type git :host github :repo "hasu/emacs-ob-racket"
+	       :files ("*.el" "*.rkt")))
+#+end_src
+
 * Documentation
 
 There is no separate documentation for =ob-racket=, so look at the [[./ob-racket.el][source code]], and the Emacs Lisp docstrings of the functions and variables appearing there. You will probably also find the [[https://orgmode.org/org.html#Working-with-Source-Code][relevant Org documentation]] useful:
