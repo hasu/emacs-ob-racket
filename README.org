@@ -20,7 +20,7 @@ Then make sure the =ob-racket= feature is on Emacs' =load-path= so that it can b
   (add-to-list 'load-path "/my/path/to/emacs-ob-racket")
 #+END_SRC
 
-Furthermore, you should enable =racket= code for evaluation (e.g., upon invoking =org-babel-execute-src-block=, by default bound to =C-c C-c= under Org), by having the =org-babel-load-languages= variable include =racket=. Something like this should do the trick:
+Furthermore, you should enable =racket= code for evaluation (e.g., upon invoking =org-babel-execute-src-block=, by default bound to =C-c C-c= under Org) by making available the =*:racket= definitions of the =ob-racket= feature. One way to do that is to simply =require= the feature, but Org can also be made to load =ob-racket= by having the customizable =org-babel-load-languages= variable include =racket=. Programmatically, something like this should do the trick:
 #+BEGIN_SRC emacs-lisp
   (org-babel-do-load-languages
    'org-babel-load-languages
@@ -41,12 +41,7 @@ The cloning, byte-compilation, loading, and configuration can all be done declar
 #+begin_src emacs-lisp
   (use-package ob-racket
     :after org
-    :functions (ob-racket-raco-make-runtime-library)
     :config
-    (org-babel-do-load-languages
-     'org-babel-load-languages
-     '((emacs-lisp . t)
-       (racket . t)))
     (ob-racket-raco-make-runtime-library)
     :straight (ob-racket
 	       :type git :host github :repo "hasu/emacs-ob-racket"
