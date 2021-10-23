@@ -1,6 +1,6 @@
 ;;; ob-racket.el --- Racket SRC block support for Org  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2015, 2019, 2020 the authors
+;; Copyright (C) 2015, 2019, 2020, 2021 the authors
 ;;
 ;; Authors: Tero Hasu
 ;; Homepage: https://github.com/hasu/emacs-ob-racket
@@ -150,6 +150,17 @@ argument list, and also return a '(BODY PARAMS) list.")
 Should be a function returning the full file path of a Racket
 module. When this variable is set to nil, or when the function
 returns nil, no conversion takes place.")
+
+(defvar ob-racket-pre-runtime-library-load-hook nil
+  "Hook run once before loading runtime library.
+That is, all the hook functions are run once before first using
+any ob-racket Racket runtime library, as known to
+`ob-racket-locate-runtime-library-function'.")
+
+(defvar ob-racket-have-run-pre-runtime-hook nil
+  "Whether the pre-runtime hook has been run.
+Set to a non-nil value once an attempt has been made to run
+`ob-racket-pre-runtime-library-load-hook'.")
 
 (defvar ob-racket-default-code-templates
   `(
@@ -421,6 +432,9 @@ results are processed."
 	       (funcall ob-racket-locate-runtime-library-function)))
 	 (elisp-printing-form
 	  (when runtime-library
+            (unless ob-racket-have-run-pre-runtime-hook
+              (setq ob-racket-have-run-pre-runtime-hook t)
+              (run-hooks 'ob-racket-pre-runtime-library-load-hook))
 	    (cond
 	     ((equal "elisp" (cdr (assq :results-as params)))
 	      "ob-racket-begin-print-elisp")

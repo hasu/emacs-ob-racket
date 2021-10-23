@@ -42,7 +42,8 @@ The cloning, byte-compilation, loading, and configuration can all be done declar
   (use-package ob-racket
     :after org
     :config
-    (ob-racket-raco-make-runtime-library)
+    (add-hook 'ob-racket-pre-runtime-library-load-hook
+	      #'ob-racket-raco-make-runtime-library)
     :straight (ob-racket
 	       :type git :host github :repo "hasu/emacs-ob-racket"
 	       :files ("*.el" "*.rkt")))
