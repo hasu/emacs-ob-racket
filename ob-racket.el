@@ -518,7 +518,7 @@ Do nothing if there is no library that is known to
                      (parens (spaced "vector" runtime-library)))))
                   "(dynamic-require (cadr raco-make-spec) #f)")))
               `((runtime-library
-                 . ,(lambda (_env params)
+                 . ,(lambda (_env _params)
 	              (format "%S" runtime-library))))
               nil)))
           (prog1
