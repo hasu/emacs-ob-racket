@@ -6,7 +6,7 @@
 (provide ob-racket-begin-print-elisp
          ob-racket-begin-print-table)
 
-(require racket/dict racket/extflonum racket/math
+(require racket/extflonum racket/math
          racket/set racket/string
          compatibility/mlist syntax/parse/define)
 
@@ -247,9 +247,9 @@
      (string-append "[" (string-join (map datum->elisp (vector->list datum)) " ") "]"))
     ((void? datum)
      "nil")
-    ((dict? datum)
+    ((hash? datum)
      ;; Emacs Lisp would also have hash tables with exotic #s(....) read syntax.
-     (datum->elisp (dict->list datum)))
+     (datum->elisp (hash->list datum)))
     (else
      ;; Unsupported data type: use Racket string representation, which is at least `read'able.
      (datum->elisp (format "~s" datum)))))
@@ -288,8 +288,8 @@
      (datum->table (syntax->datum datum)))
     ((vector? datum)
      (datum->table (vector->list datum)))
-    ((dict? datum)
-     (datum->table (dict->list datum)))
+    ((hash? datum)
+     (datum->table (hash->list datum)))
     (else
      (datum->elisp (format "~s" datum)))))
 
