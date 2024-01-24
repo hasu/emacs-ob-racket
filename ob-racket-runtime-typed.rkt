@@ -1,4 +1,4 @@
-#lang racket/base
+#lang typed/racket/base
 
 #|
 |#
@@ -8,7 +8,20 @@
 
 (require racket/dict racket/extflonum racket/math
          racket/set racket/string
-         compatibility/mlist)
+         compatibility/mlist syntax/parse/define)
+
+(require/typed racket/set
+  [set? (-> Any Boolean)]
+  [set-mutable? (-> Any Boolean)]
+  [set-weak? (-> Any Boolean)]
+  [set->list (-> (Setof Any) (Listof Any))])
+
+(require/typed compatibility/mlist
+  [mlist? (-> Any Boolean)]
+  [mlist->list (-> Datum Datum)])
+
+(define-syntax-parse-rule (assert-type e:expr type:expr)
+  (assert e (make-predicate type)))
 
 ;;;
 ;;; Racket data to Emacs Lisp.
@@ -21,10 +34,12 @@
     (let ()
       body ...))))
 
+(: char-code->string (-> Integer String))
 (define (char-code->string num)
   (string (integer->char num)))
 
 ;; Characters not needing escaping in Emacs Lisp character, symbol, or string syntax.
+(: safe-ascii-code->string (-> Integer (U String False)))
 (define (safe-ascii-code->string num)
   (cond
     ((= num 33) "!")
@@ -56,6 +71,7 @@
     ((= num 126) "~")
     (else #f)))
 
+(: shorthand-escaped-ascii-code->string (-> Integer (U String False)))
 (define (shorthand-escaped-ascii-code->string num)
   (cond
     ((= num 7) "\\a")
@@ -69,6 +85,7 @@
     ((= num 127) "\\d")
     (else #f)))
 
+(: char->elisp (-> Char String))
 (define (char->elisp ch)
   (define num (char->integer ch))
   (cond
@@ -96,6 +113,7 @@
      ;; In Emacs Lisp, characters are just numbers.
      (number->string num))))
 
+(: string-pad (-> String Integer Char String))
 (define (string-pad s up-to-len pad-ch)
   (define len (string-length s))
   (if (>= len up-to-len)
@@ -103,12 +121,15 @@
       (let ((n (- up-to-len len)))
         (string-append (make-string n pad-ch) s))))
 
+(: u-escape (-> Number String))
 (define (u-escape v)
   (string-append "\\u" (string-pad (format "~x" v) 4 #\0)))
 
+(: U-escape (-> Number String))
 (define (U-escape v)
   (string-append "\\U00" (string-pad (format "~x" v) 6 #\0)))
 
+(: string-char->elisp (-> Char String))
 (define (string-char->elisp ch)
   (define num (char->integer ch))
   (cond
@@ -129,18 +150,21 @@
      ;; Not an Emacs Lisp character.
      (format "~s" ch))))
 
+(: string->elisp (-> String String))
 (define (string->elisp str)
   (string-append "\""
                  (apply string-append
                         (map string-char->elisp (string->list str)))
                  "\""))
 
+(: symbol-escape (-> String String))
 (define (symbol-escape str)
   (regexp-replace*
    #rx"([^a-zA-Z0-9+=*/_~!@$%^&:<>{}?-])"
    str
    "\\\\\\1"))
 
+(: symbol->elisp (-> Symbol String))
 (define (symbol->elisp sym)
   (define str (symbol->string sym))
   (cond
@@ -152,6 +176,7 @@
     (else
      (symbol-escape str))))
 
+(: number->elisp (-> Number String))
 (define (number->elisp num)
   (cond
     ((exact-integer? num)
@@ -183,6 +208,7 @@
      ;; convert to something else.
      (format "~a" (exact->inexact num)))))
 
+(: datum->elisp (-> Any String))
 (define (datum->elisp datum)
   (cond
     ((boolean? datum)
@@ -210,7 +236,7 @@
     ((pair? datum)
      (format "(~a . ~a)" (datum->elisp (car datum)) (datum->elisp (cdr datum))))
     ((or (set? datum) (set-mutable? datum) (set-weak? datum))
-     (datum->elisp (set->list datum)))
+     (datum->elisp (set->list (assert-type datum (Setof Any)))))
     ((string? datum)
      (string->elisp datum))
     ((symbol? datum)
@@ -239,6 +265,7 @@
     (let ()
       body ...))))
 
+(: datum->table (-> Any String))
 (define (datum->table datum)
   (cond
     ((list? datum)
@@ -254,7 +281,7 @@
     ((number? datum)
      (datum->elisp datum))
     ((or (set? datum) (set-mutable? datum) (set-weak? datum))
-     (datum->table (set->list datum)))
+     (datum->table (set->list (assert-type datum (Setof Any)))))
     ((symbol? datum)
      (datum->elisp datum))
     ((syntax? datum)
