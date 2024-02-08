@@ -8,17 +8,13 @@
 
 (require racket/extflonum racket/math
          racket/set racket/string
-         compatibility/mlist syntax/parse/define)
+         syntax/parse/define)
 
 (require/typed racket/set
   [set? (-> Any Boolean)]
   [set-mutable? (-> Any Boolean)]
   [set-weak? (-> Any Boolean)]
   [set->list (-> (Setof Any) (Listof Any))])
-
-(require/typed compatibility/mlist
-  [mlist? (-> Any Boolean)]
-  [mlist->list (-> Datum Datum)])
 
 (define-syntax-parse-rule (assert-type e:expr type:expr)
   (assert e (make-predicate type)))
@@ -272,8 +268,6 @@
      (string-append "(" (string-join (map datum->table datum) " ") ")"))
     ((pair? datum)
      (datum->table (list (car datum) (cdr datum))))
-    ((mlist? datum)
-     (datum->table (mlist->list datum)))
     ((mpair? datum)
      (datum->table (list (mcar datum) (mcdr datum))))
     ((and (extflonum-available?) (extflonum? datum))
