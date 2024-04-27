@@ -33,7 +33,9 @@ Furthermore, you should enable =racket= code for evaluation (e.g., upon invoking
 Code evaluation may still require confirmation, depending on the value of the =org-confirm-babel-evaluate= variable, which is customizable, and may also be set file locally.
 
 Some =ob-racket= functionality relies on a Racket module for converting Racket values to Emacs Lisp ones, and it can be worthwhile to byte-compile that module:
-: raco make ob-racket-runtime.rkt
+#+begin_src shell-script
+  raco make ob-racket-runtime.rkt
+#+end_src
 
 ** Installation with straight.el
 
@@ -47,6 +49,16 @@ The cloning, byte-compilation, loading, and configuration can all be done declar
     :straight (ob-racket
 	       :type git :host github :repo "hasu/emacs-ob-racket"
 	       :files ("*.el" "*.rkt")))
+#+end_src
+
+* Configuration
+
+For evaluating code blocks written in Racket in the usual way the =ob-racket= feature by default assumes that there is an executable named "racket" in the search =PATH= of the Emacs process. If that is not the case then a different way of invoking Racket can be specified using =ob-racket='s “command templates.”
+
+For example, if you have set the variable =racket-program= for =racket-mode= so that it specifies a path to a =racket= program executable, then you can also configure the same value for =ob-racket= by overriding the default =racket= program template:
+#+begin_src emacs-lisp
+  (setq ob-racket-custom-command-templates
+	`((racket . ,racket-program)))
 #+end_src
 
 * Documentation
