@@ -366,6 +366,85 @@ x + y + z
 : val z = x + y;
 : println x + y + z
 
+/Typed Racket/ is a well-known Racket dialect.
+#+begin_src racket :lang typed/racket :results output
+  (let ([x : Number 1])
+    x)
+#+end_src
+
+#+RESULTS:
+: 1
+
+#+begin_src racket :lang typed/racket :results value
+  (let ([x : Number 1])
+    (add1 x))
+#+end_src
+
+#+RESULTS:
+: 2
+
+When using Typed Racket the =require= forms or the required modules may need to be different to provide static type information. For this code =ob-racket= automatically uses "ob-racket-runtime-typed.rkt" in constructing the Org table:
+#+begin_src racket :lang typed/racket :results table
+  '((1 2) (3 4))
+#+end_src
+
+#+RESULTS:
+| 1 | 2 |
+| 3 | 4 |
+
+We may sometimes need to be more explicit about such choices if the =#lang= is not known to =ob-racket=:
+#+begin_src racket :lang at-exp typed/racket :results table :ob-rkt ob-racket-runtime-typed
+  @reverse['((1 2) (3 4))]
+#+end_src
+
+#+RESULTS:
+| 3 | 4 |
+| 1 | 2 |
+
+We can also give full require specifications as one would with =:require=, but for selecting the modules for =ob-racket= processing time. For example if we had installed =ob-racket= as a Racket package we should be able to write:
+#+begin_src racket :lang at-exp typed/racket :results table :ob-rkt-require ob-racket/ob-racket-runtime-typed
+  @map[(lambda ([xs : (Listof Integer)]) (map add1 xs))
+       '((1 2 3) (4 5 6) (7 8 9))]
+#+end_src
+
+#+RESULTS:
+| 2 | 3 |  4 |
+| 5 | 6 |  7 |
+| 8 | 9 | 10 |
+
+There are also typed Scheme languages for Racket.
+#+begin_src racket :lang typed/scheme
+  '(1/5 2/5 3/5 4/5)
+#+end_src
+
+#+RESULTS:
+: (1/5 2/5 3/5 4/5)
+
+Where conversion to Emacs Lisp is required it gets done using "ob-racket-runtime-typed.rkt" also for =typed/scheme=:
+#+begin_src racket :lang typed/scheme :results-as elisp
+  '(1/5 2/5 3/5 4/5)
+#+end_src
+
+#+RESULTS:
+: (0.2 0.4 0.6 0.8)
+
+#+begin_src racket :lang typed/scheme/base :results list
+  '(1/5 2/5 3/5 4/5)
+#+end_src
+
+#+RESULTS:
+- 0.2
+- 0.4
+- 0.6
+- 0.8
+
+#+begin_src racket :lang typed-scheme :results table
+  '(1/5 2/5 3/5 4/5)
+#+end_src
+
+#+RESULTS:
+| 0.2 | 0.4 | 0.6 | 0.8 |
+
 It is possible to evaluate the code block content as an executable script, if that is what one wants to demonstrate with the listing. It is important here to ensure that the shebang line is the very first one, but that can be ensured by having nothing but the code block body in the program.
 #+HEADER: :command '(spaced "chmod" "u+x" (file :in-file) "&&" (file :in-file))
 #+BEGIN_SRC racket :results output :program ':body

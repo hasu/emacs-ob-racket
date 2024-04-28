@@ -1,6 +1,6 @@
 ;;; ob-racket.el --- Racket SRC block support for Org  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2015, 2019, 2020, 2021 the authors
+;; Copyright (C) 2015, 2019, 2020, 2021, 2024 the authors
 ;;
 ;; Authors: Tero Hasu
 ;; Homepage: https://github.com/hasu/emacs-ob-racket
@@ -35,8 +35,8 @@
 ;; `ob-racket-custom-command-templates' exist for that purpose. The
 ;; templates also for the most part determine which header arguments
 ;; affect SRC block handling. The default templates assume that
-;; `define-values`, `values`, `let`, and `write` have their `racket`
-;; language semantics.
+;; `require`, `define-values`, `values`, `let`, and `write` have their
+;; `racket` language semantics.
 ;;
 ;; As templates may be specified as functions, it is possible for them
 ;; to do unsafe things. Org's standard `org-babel-safe-header-args'
@@ -62,6 +62,7 @@
 
 (require 'cl-lib)
 (require 'ob)
+(require 'subr-x)
 
 ;;; Code:
 
@@ -129,8 +130,12 @@ list, etc.) formatting.")
 	(when (let ((case-fold-search nil))
 		(string-match ob-racket-hash-lang-regexp body))
 	  (let* ((lang-line (match-string 0 body))
+                 (lang-spec (string-trim (match-string 1 body)))
 		 (result-type (cdr (assq :result-type params)))
 		 (is-value-type (eq 'value result-type)))
+            ;; Set both :lang and :lang-line, with the former only for
+            ;; checking, as the latter encompasses it.
+            (setq params (cons (cons :lang lang-spec) params))
 	    (if is-value-type
 		(setq params (cons (cons :lang-line lang-line) params)
 		      body (replace-match "" t t body))
@@ -144,12 +149,23 @@ at the complete Racket source file content to evaluate. Any
 function set to this variable should accept a (BODY PARAMS)
 argument list, and also return a '(BODY PARAMS) list.")
 
+(defvar ob-racket-runtime-libraries
+  '("ob-racket-runtime.rkt"
+    "ob-racket-runtime-typed.rkt")
+  "Racket-based runtime libraries to be byte-compiled.
+A list of file names to be processed if
+`ob-racket-raco-make-runtime-library' is called.")
+
 (defvar ob-racket-locate-runtime-library-function
-  (lambda () (locate-library "ob-racket-runtime.rkt" t))
+  (lambda (name)
+    (if (file-name-absolute-p name)
+        (expand-file-name name)
+      (let ((load-suffixes '(".rkt")))
+        (locate-library name nil))))
   "A function to locate a Racket-based runtime library.
 Should be a function returning the full file path of a Racket
-module. When this variable is set to nil, or when the function
-returns nil, no conversion takes place.")
+module when given a file NAME. When this variable is set to nil
+no conversion takes place.")
 
 (defvar ob-racket-pre-runtime-library-load-hook nil
   "Hook run once before loading runtime library.
@@ -173,12 +189,22 @@ Set to a non-nil value once an attempt has been made to run
 		    'elisp-value-program
 		  'value-program)
 	      'output-program))))
-    (require-runtime-library
+    (ob-rkt
      . ,(lambda (_env params)
-	  (format "%S" `(require (file ,(cdr (assq :runtime-library params)))))))
+          (let ((lang (or (cdr (assq :lang params))
+                          ob-racket-default-lang)))
+            (pcase lang
+              ((or "typed/racket" "typed/racket/base"
+                   "typed/scheme" "typed/scheme/base" "typed-scheme")
+               "ob-racket-runtime-typed")
+              (_ "ob-racket-runtime")))))
+    (ob-rkt-require ;; cf., `require`, can take multiple specs
+     . (parens (spaced "file" (locate ob-rkt))))
+    (ob-rkt-requires ;; cf., `requires`
+     . (parens (spaced "require" ob-rkt-require)))
     (elisp-value-program
      . (prologue
-	"\n" require-runtime-library
+	"\n" ob-rkt-requires
 	"\n" "(" :elisp-printing-form
 	"\n" define-vars
 	"\n" :body ")"
@@ -285,6 +311,17 @@ the header PARAMS are checked."
   (or (assq name env)
       (assq (intern (concat ":" (symbol-name name))) params)))
 
+(defun ob-racket-locate-runtime-library (name)
+  "Locate a Racket-based runtime library.
+Do that in terms of `ob-racket-locate-runtime-library-function'
+and a file NAME. Return nil if not found, and otherwise a
+complete path."
+  (when ob-racket-locate-runtime-library-function
+    (condition-case nil
+        (funcall ob-racket-locate-runtime-library-function name)
+        ((wrong-number-of-arguments) ;; for backward compatibility
+         (funcall ob-racket-locate-runtime-library-function)))))
+
 (defun ob-racket-expand-sexp (template env params)
   "Expand an S-expression, and return a string.
 Like `ob-racket-expand-template', but regards TEMPLATE as an
@@ -367,19 +404,26 @@ PARAMS, then that parameter is used instead of anything in ENV."
     (`(format ;; special form
        ,(and (pred stringp) fmt)
        . ,(and (pred (lambda (xs)
-		       (and (listp xs) (cl-every #'keywordp xs))))
-	       args))
+                       (and (listp xs) (cl-every #'keywordp xs))))
+               args))
      (apply #'format fmt (mapcar
-			  (lambda (x)
-			    (let ((p (assq x params)))
-			      (unless p
-				(error "No assignment for parameter %s in %S"
-				       x params))
-			      (cdr p)))
-			  args)))
+                          (lambda (x)
+                            (let ((p (assq x params)))
+                              (unless p
+                                (error "No assignment for parameter %s in %S"
+                                       x params))
+                              (cdr p)))
+                          args)))
     (`(file ,name) ;; special form
      (org-babel-process-file-name
       (ob-racket-expand-template name env params)))
+    (`(locate ,name-exp) ;; special form
+     (let* ((name (ob-racket-expand-template name-exp env params))
+            (file (and (stringp name)
+                       (ob-racket-locate-runtime-library name))))
+       (if file
+           (format "%S" file)
+         (error "Could not locate runtime library %S" name))))
     (`(parameterize ;; special form
        (,(and (pred keywordp) x) ,v)
        . ,rest)
@@ -426,15 +470,9 @@ results are processed."
 		    (member "vector" p)
 		    (member "verbatim" p))
 		p (cons "scalar" p))))
-	 (runtime-library
-	  (and is-value-type
-	       ob-racket-locate-runtime-library-function
-	       (funcall ob-racket-locate-runtime-library-function)))
 	 (elisp-printing-form
-	  (when runtime-library
-            (unless ob-racket-have-run-pre-runtime-hook
-              (setq ob-racket-have-run-pre-runtime-hook t)
-              (run-hooks 'ob-racket-pre-runtime-library-load-hook))
+	  (when (and is-value-type
+	             ob-racket-locate-runtime-library-function)
 	    (cond
 	     ((equal "elisp" (cdr (assq :results-as params)))
 	      "ob-racket-begin-print-elisp")
@@ -442,11 +480,15 @@ results are processed."
 		  (member "table" result-params)
 		  (member "vector" result-params))
 	      "ob-racket-begin-print-table"))))
-	 (params `((:runtime-library . ,runtime-library)
-		   (:elisp-printing-form . ,elisp-printing-form)
-		   (:result-params . ,result-params)
-		   ,@params))
+	 (params
+          `((:elisp-printing-form . ,elisp-printing-form)
+	    (:result-params . ,result-params)
+	    ,@params))
 	 (full-body (org-babel-expand-body:racket body params)))
+    (when elisp-printing-form
+      (unless ob-racket-have-run-pre-runtime-hook
+        (setq ob-racket-have-run-pre-runtime-hook t)
+        (run-hooks 'ob-racket-pre-runtime-library-load-hook)))
     (ob-racket-dump-if 'dump-code full-body t)
     (let* ((in-file
 	    (or (cdr (assq :in-file params))
@@ -484,51 +526,66 @@ results are processed."
 SESSION and PARAMS are ignored."
   (error "Sessions are not supported for `racket`"))
 
-(defun ob-racket-raco-make-runtime-library ()
-  "Run raco make on the ob-racket Racket runtime library.
-To do that run Racket as defined by ob-racket command templates.
-Do nothing if there is no library that is known to
-`ob-racket-locate-runtime-library-function'."
+(defun ob-racket-locatable-runtime-libraries ()
+  "Return a list of locatable runtime libraries.
+The result includes the path names of those
+`ob-racket-runtime-libraries' that can be located by
+`ob-racket-locate-runtime-library-function' or that are already
+absolute paths. Duplicates are not included in the result."
   (when ob-racket-locate-runtime-library-function
-    (let ((runtime-library
-           (funcall ob-racket-locate-runtime-library-function)))
-      (when runtime-library
-        (let* ((in-file
-		(org-babel-temp-file "org-babel-" ".rkt"))
-	       (command
-	        (ob-racket-expand-template
-                 'command
-                 (append ob-racket-custom-command-templates
-		         ob-racket-default-command-templates)
-                 `((:in-file . ,in-file)))))
-          (with-temp-file in-file
-	    (insert
-             (ob-racket-expand-template
-              `(lines
-                "#lang racket/base"
-                "(require raco/all-tools)"
-                "(define raco-make-spec (hash-ref (all-tools) \"make\"))"
+    (delete-dups
+     (delete
+      nil
+      (mapcar
+       #'ob-racket-locate-runtime-library
+       ob-racket-runtime-libraries)))))
+
+(defun ob-racket-raco-make-runtime-library ()
+  "Run raco make on any ob-racket Racket runtime libraries.
+To do that run Racket as defined by ob-racket command templates.
+Ignore any `ob-racket-runtime-libraries' that are not known to
+`ob-racket-locate-runtime-library-function'."
+  (let ((runtime-libraries
+         (ob-racket-locatable-runtime-libraries)))
+    (when runtime-libraries
+      (let* ((in-file
+	      (org-babel-temp-file "org-babel-" ".rkt"))
+	     (command
+	      (ob-racket-expand-template
+               'command
+               (append ob-racket-custom-command-templates
+		       ob-racket-default-command-templates)
+               `((:in-file . ,in-file)))))
+        (with-temp-file in-file
+	  (insert
+           (ob-racket-expand-template
+            `(lines
+              "#lang racket/base"
+              "(require raco/all-tools)"
+              "(define raco-make-spec (hash-ref (all-tools) \"make\"))"
+              (parens
+               (spaced
+                "parameterize"
                 (parens
-                 (spaced
-                  "parameterize"
-                  (parens
-                   (parens
-                    (spaced
-                     "current-command-line-arguments"
-                     (parens (spaced "vector" runtime-library)))))
-                  "(dynamic-require (cadr raco-make-spec) #f)")))
-              `((runtime-library
-                 . ,(lambda (_env _params)
-	              (format "%S" runtime-library))))
-              nil)))
-          (prog1
-              (with-temp-buffer
-                (shell-command command nil (current-buffer))
-                (let ((error-message (buffer-string)))
-                  (unless (= 0 (length error-message))
-                    (message "Failed to raco make %S: %s"
-                             runtime-library error-message))))
-            (delete-file in-file)))))))
+                 (parens
+                  (spaced
+                   "current-command-line-arguments"
+                   (parens (spaced "vector" runtime-libraries)))))
+                "(dynamic-require (cadr raco-make-spec) #f)")))
+            `((runtime-libraries
+               . ,(lambda (_env _params)
+                    (mapconcat
+                     (lambda (x) (format "%S" x))
+                     runtime-libraries " "))))
+            nil)))
+        (prog1
+            (with-temp-buffer
+              (shell-command command nil (current-buffer))
+              (let ((error-message (buffer-string)))
+                (unless (= 0 (length error-message))
+                  (message "Failed to raco make %S: %s"
+                           runtime-libraries error-message))))
+          (delete-file in-file))))))
 
 (provide 'ob-racket)
 

@@ -32,10 +32,11 @@ Furthermore, you should enable =racket= code for evaluation (e.g., upon invoking
 
 Code evaluation may still require confirmation, depending on the value of the =org-confirm-babel-evaluate= variable, which is customizable, and may also be set file locally.
 
-Some =ob-racket= functionality relies on a Racket module for converting Racket values to Emacs Lisp ones, and it can be worthwhile to byte-compile that module:
+Some =ob-racket= functionality relies on a Racket module for converting Racket values to Emacs Lisp ones, and it can be worthwhile to byte-compile the implementations of that module:
 #+begin_src shell-script
-  raco make ob-racket-runtime.rkt
+  raco make ob-racket-runtime*.rkt
 #+end_src
+The "ob-racket-runtime.rkt" module is the default implementation, but as there is no one “correct” way to map values between languages, nor is the particular implementation even compatible with all possible Racket-based languages, it is possible to use different implementations in different situations or with different =#lang='uages. An example "ob-racket-runtime-typed.rkt" module is included for Typed Racket.
 
 ** Installation with straight.el
 
